@@ -1,0 +1,49 @@
+# YOLO training configuration for UrbanLens
+
+# Dataset
+path: ../data/urbanlens
+train: images/train
+val: images/val
+test: images/test
+
+# Classes
+nc: 5
+names:
+  - pothole
+  - garbage
+  - damaged_streetlight
+  - waterlogging
+  - illegal_dumping
+
+# Training hyperparameters
+epochs: 100
+batch_size: 16
+imgsz: 640
+patience: 20
+optimizer: SGD
+lr0: 0.01
+lrf: 0.01
+momentum: 0.937
+weight_decay: 0.0005
+warmup_epochs: 3.0
+warmup_momentum: 0.8
+warmup_bias_lr: 0.1
+
+# Augmentation
+hsv_h: 0.015
+hsv_s: 0.7
+hsv_v: 0.4
+degrees: 5.0
+translate: 0.1
+scale: 0.5
+shear: 2.0
+perspective: 0.0
+flipud: 0.0
+fliplr: 0.5
+mosaic: 1.0
+mixup: 0.1
+copy_paste: 0.0
+
+# Model
+model: yolov8n.pt
+pretrained: true
