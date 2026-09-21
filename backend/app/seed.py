@@ -6,10 +6,13 @@ Idempotent: skips entities that already exist (by email / name).
 
 import asyncio
 from datetime import datetime, timedelta, timezone
+from uuid import UUID
 
+import httpx
 from geoalchemy2 import WKTElement
 from sqlalchemy import select
 
+from app.config import settings
 from app.core.security import hash_password
 from app.database import async_session
 from app.models.incident import Incident
@@ -19,6 +22,10 @@ from app.models.ward import Ward
 from app.services.priority import compute_priority
 
 NOW = datetime.now(timezone.utc)
+
+# Password for the demo accounts when Supabase Auth is the identity layer.
+# Kept out of the repository: set SEED_DEMO_PASSWORD in the gitignored .env.
+DEMO_PASSWORD = settings.SEED_DEMO_PASSWORD
 
 WARDS = [
     ("Vashi", 72.995, 19.077),
@@ -91,7 +98,44 @@ def nearest_ward_name(lat: float, lng: float) -> str:
     return min(WARDS, key=lambda w: (w[2] - lat) ** 2 + (w[1] - lng) ** 2)[0]
 
 
+def _supabase_admin_headers() -> dict[str, str]:
+    key = settings.SUPABASE_SECRET_KEY
+    return {"apikey": key, "Authorization": f"Bearer {key}",
+            "Content-Type": "application/json"}
+
+
+async def ensure_supabase_auth_user(email: str, display_name: str) -> UUID:
+    """Create (or fetch) a Supabase Auth user and return its uid.
+
+    The uid becomes public.users.id, so the profile auto-provisioned on login
+    matches this row and the seeded role is preserved.
+    """
+    base = f"{settings.SUPABASE_URL}/auth/v1/admin/users"
+    async with httpx.AsyncClient(timeout=30) as client:
+        resp = await client.get(f"{base}?page=1&per_page=1000",
+                                headers=_supabase_admin_headers())
+        resp.raise_for_status()
+        for u in resp.json().get("users", []):
+            if u.get("email") == email:
+                return UUID(u["id"])
+
+        resp = await client.post(
+            base,
+            headers=_supabase_admin_headers(),
+            json={
+                "email": email,
+                "password": DEMO_PASSWORD,
+                "email_confirm": True,
+                "app_metadata": {"role": "authenticated"},
+                "user_metadata": {"display_name": display_name},
+            },
+        )
+        resp.raise_for_status()
+        return UUID(resp.json()["id"])
+
+
 async def seed() -> None:
+    supabase_mode = bool(settings.SUPABASE_URL and settings.SUPABASE_SECRET_KEY)
     async with async_session() as db:
         # --- wards ----------------------------------------------------------
         wards: dict[str, Ward] = {}
@@ -118,15 +162,28 @@ async def seed() -> None:
                 select(User).where(User.email == email)
             )).scalar_one_or_none()
             if existing:
+                existing.role = role
+                existing.display_name = display_name
                 users[role] = existing
                 continue
-            user = User(
-                email=email,
-                hashed_password=hash_password(password),
-                role=role,
-                display_name=display_name,
-                consent_training=consent,
-            )
+            if supabase_mode:
+                uid = await ensure_supabase_auth_user(email, display_name)
+                user = User(
+                    id=uid,
+                    email=email,
+                    hashed_password="!supabase-auth",
+                    role=role,
+                    display_name=display_name,
+                    consent_training=consent,
+                )
+            else:
+                user = User(
+                    email=email,
+                    hashed_password=hash_password(password),
+                    role=role,
+                    display_name=display_name,
+                    consent_training=consent,
+                )
             db.add(user)
             users[role] = user
         await db.flush()
@@ -136,6 +193,18 @@ async def seed() -> None:
         for issue, lat, lng, landmark, desc, days_ago, status, verification in REPORTS:
             submitted_at = NOW - timedelta(days=days_ago)
             key = (issue, round(lat, 3), round(lng, 3))
+
+            already = (await db.execute(
+                select(Report).where(Report.description == desc)
+            )).scalars().first()
+            if already:
+                # Keep the incident map consistent with the reports actually stored.
+                if already.incident_id:
+                    incident = await db.get(Incident, already.incident_id)
+                    if incident is not None:
+                        clusters[key] = incident
+                continue
+
             cluster_members = [r for r in REPORTS
                                if (r[0], round(r[1], 3), round(r[2], 3)) == key]
             incident = clusters.get(key)

@@ -4,6 +4,7 @@ import {
   createContext, useCallback, useContext, useEffect, useMemo, useState,
 } from "react";
 import { authApi, getToken, setToken, type User } from "@/lib/api";
+import { supabase } from "@/lib/supabase";
 
 interface AuthState {
   user: User | null;
@@ -21,6 +22,11 @@ interface AuthState {
 
 const AuthContext = createContext<AuthState | null>(null);
 
+async function loadMe(): Promise<User> {
+  const me = await authApi.me();
+  return me;
+}
+
 export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [user, setUser] = useState<User | null>(null);
   const [loading, setLoading] = useState(true);
@@ -28,12 +34,17 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   useEffect(() => {
     let cancelled = false;
     async function restore() {
-      if (!getToken()) {
+      // Prefer a fresh Supabase session (handles token refresh); fall back to a
+      // stored legacy token so pre-Supabase sessions keep working.
+      const { data } = await supabase.auth.getSession();
+      if (data.session?.access_token) {
+        setToken(data.session.access_token);
+      } else if (!getToken()) {
         setLoading(false);
         return;
       }
       try {
-        const me = await authApi.me();
+        const me = await loadMe();
         if (!cancelled) setUser(me);
       } catch {
         setToken(null);
@@ -42,15 +53,25 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       }
     }
     restore();
+    const { data: sub } = supabase.auth.onAuthStateChange((_event, session) => {
+      if (session?.access_token) setToken(session.access_token);
+    });
     return () => {
       cancelled = true;
+      sub.subscription.unsubscribe();
     };
   }, []);
 
   const login = useCallback(async (email: string, password: string) => {
-    const token = await authApi.login(email, password);
-    setToken(token.access_token);
-    const me = await authApi.me();
+    const { data, error } = await supabase.auth.signInWithPassword({
+      email,
+      password,
+    });
+    if (error || !data.session) {
+      throw new Error(error?.message || "Invalid email or password");
+    }
+    setToken(data.session.access_token);
+    const me = await loadMe();
     setUser(me);
     return me;
   }, []);
@@ -62,13 +83,31 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       display_name?: string;
       consent_training?: boolean;
     }) => {
-      await authApi.register(data);
+      const { data: signed, error } = await supabase.auth.signUp({
+        email: data.email,
+        password: data.password,
+        options: { data: { display_name: data.display_name } },
+      });
+      if (error) throw new Error(error.message);
+      // Email confirmation is off in dev → a session comes back immediately.
+      if (signed.session?.access_token) {
+        setToken(signed.session.access_token);
+        const me = await loadMe();
+        setUser(me);
+        return me;
+      }
+      if (signed.user && !signed.session) {
+        throw new Error(
+          "Check your inbox — confirm your email address, then sign in.",
+        );
+      }
       return login(data.email, data.password);
     },
     [login],
   );
 
   const logout = useCallback(() => {
+    void supabase.auth.signOut();
     setToken(null);
     setUser(null);
   }, []);

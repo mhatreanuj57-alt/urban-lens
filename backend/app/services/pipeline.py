@@ -111,7 +111,7 @@ def _cosine(a: list[float], b: list[float]) -> float:
 
 def _blur_faces(img: Image.Image) -> tuple[Image.Image, int]:
     """Blur detected faces using OpenCV Haar cascades when available."""
-    if cv2 is None:
+    if cv2 is None or not hasattr(cv2, "CascadeClassifier"):
         return img, 0
     arr = np.array(img.convert("RGB"))
     cascade_path = Path(cv2.data.haarcascades) / "haarcascade_frontalface_default.xml"

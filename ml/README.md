@@ -28,12 +28,12 @@ You do not need a GPU on this machine. Train on a free Colab GPU and copy the we
 
 1. Open **`notebooks/urbanlens_colab_train.ipynb`** in Google Colab.
 2. **Runtime ▸ Change runtime type ▸ T4 GPU.**
-3. In the **Config** cell paste your free Roboflow API key and a public dataset's
-   workspace/project/version. Public data is uneven across the 5 classes, so start with a
-   **pothole** dataset (e.g. search *pothole detection* on Roboflow Universe) and set
-   `CLASS_NAMES = ['pothole']`. Add the other classes later as more data is collected.
-4. Run all cells. It trains, evaluates (mAP), shows sample detections, then downloads
-   `urbanlens_yolov8_v1.pt` and a filled-in `model_card.md`.
+3. **Nothing to paste.** The notebook downloads a public YOLO-format **pothole** dataset straight
+   from Hugging Face (`Ryukijano/Pothole-detection-Yolov8`) — no API key, no login. Public data is
+   uneven across the 5 classes, so v1 is pothole-focused; add the other classes later as more data
+   is collected.
+4. Run all cells (**Runtime ▸ Run all**). It trains, evaluates (mAP), shows sample detections, then
+   downloads `urbanlens_yolov8_v1.pt` and a filled-in `model_card.md`.
 
 ### Deploy the model locally
 

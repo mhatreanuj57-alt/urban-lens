@@ -16,17 +16,18 @@ YOLOv8 fine-tuned on the UrbanLens dataset for detecting civic issues in Navi Mu
 
 ## Training data
 
-- 300–500 images collected locally with consent
-- Annotated in YOLO format
-- Augmentation: mosaic, flip, color jitter
+- Source: public Hugging Face dataset `Ryukijano/Pothole-detection-Yolov8` (YOLO format, single class `pothole`, ~880 images)
+- Base model: `yolov8n.pt`, epochs=60, imgsz=640, seed=42, trained on Google Colab T4
+- v1 is pothole-focused; other UrbanLens classes (garbage, damaged_streetlight, waterlogging, illegal_dumping) to be added as more data is collected
 
 ## Metrics
 
 | Metric | Value |
 | --- | --- |
-| mAP@50 | 0.70+ |
-| Precision | TBD |
-| Recall | TBD |
+| mAP@50 | 0.330 |
+| mAP@50-95 | 0.154 |
+| Precision | 0.644 |
+| Recall | 0.255 |
 
 ## Limitations
 

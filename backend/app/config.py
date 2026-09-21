@@ -28,6 +28,14 @@ class Settings(BaseSettings):
     SECRET_KEY: str = "change-me-in-production"
     ACCESS_TOKEN_EXPIRE_MINUTES: int = 60 * 24 * 7  # 7 days
 
+    # Supabase (auth + database)
+    SUPABASE_URL: str = ""
+    SUPABASE_PUBLISHABLE_KEY: str = ""   # client-safe key (formerly "anon")
+    SUPABASE_SECRET_KEY: str = ""        # server-only (formerly "service_role")
+
+    # Password applied to demo accounts created by `python -m app.seed`.
+    SEED_DEMO_PASSWORD: str = ""
+
     # Storage
     STORAGE_ENDPOINT: str = "http://localhost:9000"
     # Endpoint used inside presigned URLs handed to browsers (differs in Docker)

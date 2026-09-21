@@ -11,8 +11,9 @@ from app.database import Base
 # this is the Alembic Config object
 config = context.config
 
-# Override with our database URL
-config.set_main_option("sqlalchemy.url", settings.DATABASE_URL_SYNC)
+# Override with our database URL. Percent-escape '%' so configparser's
+# interpolation leaves the URL-encoded credentials (e.g. %23 for '#') intact.
+config.set_main_option("sqlalchemy.url", settings.DATABASE_URL_SYNC.replace("%", "%%"))
 
 # Interpret the config file for Python logging
 if config.config_file_name is not None:

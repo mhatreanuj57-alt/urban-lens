@@ -83,6 +83,39 @@ function AiAnalysis({ report }: { report: ReportDetail }) {
   );
 }
 
+function ReportMedia({ report }: { report: ReportDetail }) {
+  const base =
+    process.env.NEXT_PUBLIC_STORAGE_URL ||
+    process.env.NEXT_PUBLIC_API_URL?.replace(/\/v1\/?$/, "").replace(/\/$/, "") ||
+    "http://localhost:9000";
+  return (
+    <section className="card p-5">
+      <h2 className="text-sm font-semibold uppercase tracking-wide text-ink-500">Evidence</h2>
+      <div className="mt-3 grid grid-cols-2 gap-3">
+        {report.media_assets.map((m) =>
+          m.public_object_key ? (
+            <figure key={m.id}>
+              {/* eslint-disable-next-line @next/next/no-img-element */}
+              <img
+                src={`${base}/urbanlens-public/${m.public_object_key}`}
+                alt={report.issue_type ? ISSUE_LABELS[report.issue_type] : "Reported issue"}
+                className="w-full rounded-lg border border-ink-200 object-cover"
+              />
+              <figcaption className="mt-1 text-xs text-ink-400">
+                Face-blurred public copy
+              </figcaption>
+            </figure>
+          ) : (
+            <p key={m.id} className="text-sm text-ink-500">
+              Media is still being processed before it can be shown.
+            </p>
+          ),
+        )}
+      </div>
+    </section>
+  );
+}
+
 function ComplaintExport({ reportId }: { reportId: string }) {
   const [lang, setLang] = useState<"en" | "hi" | "mr">("en");
   const [draft, setDraft] = useState<ComplaintDraft | null>(null);
@@ -229,6 +262,8 @@ export default function ReportDetailPage() {
           </div>
         </dl>
       </header>
+
+      {report.media_assets.length > 0 && <ReportMedia report={report} />}
 
       <AiAnalysis report={report} />
       <PriorityBreakdown report={report} />

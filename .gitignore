@@ -78,3 +78,6 @@ datasets/
 *.onnx
 *.engine
 
+
+# local scratch for browser/E2E test artefacts
+.qoder-tmp/
