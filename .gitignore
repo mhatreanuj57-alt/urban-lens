@@ -67,3 +67,14 @@ logs/
 htmlcov/
 .pytest_cache/
 .tox/
+
+# ML artifacts (weights, datasets, training runs stay local)
+ml/models/*
+!ml/models/.gitkeep
+ml/data/
+runs/
+datasets/
+*.pt
+*.onnx
+*.engine
+
