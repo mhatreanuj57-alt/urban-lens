@@ -78,7 +78,6 @@ export default function MapView({
       center,
       zoom,
       interactive,
-      attributionControl: true,
     });
     map.addControl(new maplibregl.NavigationControl({ showCompass: false }), "top-right");
     if (onMapClick) {
