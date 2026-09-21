@@ -6,7 +6,6 @@ services:
   - type: web
     name: urban-lens-backend
     runtime: docker
-    repo: https://github.com/a18-n03/Urban-Lens
     branch: master
     region: singapore
     plan: free
