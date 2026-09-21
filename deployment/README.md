@@ -42,9 +42,10 @@ browser -> Vercel (frontend) -> Supabase Auth (JWT)
    | `STORAGE_ENDPOINT` | `https://<ref>.supabase.co/storage/v1/s3` |
    | `STORAGE_PUBLIC_ENDPOINT` | same |
    | `STORAGE_PUBLIC_URL_BASE` | `https://<ref>.supabase.co/storage/v1/object/public/urbanlens-public` |
-   | `STORAGE_ACCESS_KEY` / `STORAGE_SECRET_KEY` | from *Project Settings -> Storage -> S3 Protocol -> Create new access key* |
+   | `STORAGE_ACCESS_KEY` / `STORAGE_SECRET_KEY` | *Project Settings -> Storage -> S3 Protocol -> Create new access key* |
    | `STORAGE_REGION` | `us-east-1` |
    | `STORAGE_PATH_STYLE` | `true` |
+   | `STORAGE_BUCKET_PRIVATE` / `STORAGE_BUCKET_PUBLIC` | `urbanlens-private` / `urbanlens-public` |
 
    Create `urbanlens-private` and `urbanlens-public` in the Storage dashboard and
    flip **Public bucket** on the second one: `PutBucketPolicy` is not part of
