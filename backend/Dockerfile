@@ -1,5 +1,5 @@
 # Build from the repository root so the model weights are reachable:
-#   docker build -f backend/Dockerfile --build-arg ML_INSTALL=1 -t urbanlens-backend .
+#   docker build -f backend/Dockerfile -t urbanlens-backend .
 FROM python:3.11-slim
 
 WORKDIR /app
@@ -16,13 +16,10 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
 COPY backend/requirements.txt ./requirements.txt
 RUN pip install --no-cache-dir -r requirements.txt
 
-# ML_INSTALL=1 adds ultralytics + CPU-only torch so detection runs in the cloud.
-# Left at 0 for the free tier: the pipeline degrades to "detection skipped".
-ARG ML_INSTALL=0
-RUN if [ "$ML_INSTALL" = "1" ]; then \
-      pip install --no-cache-dir "ultralytics==8.3.40" \
-        torch torchvision --index-url https://download.pytorch.org/whl/cpu; \
-    fi
+# Detection runs on the exported ONNX graph from ml/models (requirements pulls
+# in onnxruntime), which keeps torch out of the image so detection fits the
+# 512 MB free tier. `yolo export` regenerates it:
+#   yolo export model=ml/models/urbanlens_yolov8_v1.pt format=onnx opset=18 simplify=False
 
 COPY backend/ ./
 COPY ml/models/ /models/

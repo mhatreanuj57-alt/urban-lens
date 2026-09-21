@@ -24,7 +24,8 @@ pillow>=11.0.0
 numpy>=2.1.0
 # OpenCV is used for face blurring; pin below 5.0 (5.x drops cv2.CascadeClassifier).
 opencv-python-headless>=4.10,<5
-# Optional ML runtime (detector) — install when using real detection:
-#   pip install "ultralytics==8.3.40" torch torchvision
+# Detector runtime. The exported YOLOv8 graph runs on this alone, so torch /
+# ultralytics (several hundred MB of RAM) never enter the container image.
+onnxruntime>=1.19.0
 pytest>=8.3.0
 pytest-asyncio>=0.25.0

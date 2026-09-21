@@ -7,7 +7,7 @@ Steps (per architecture doc):
 4. Find duplicate candidates and update the incident.
 5. Persist immutable inference output with exact model version.
 
-Heavy ML deps (ultralytics, transformers, opencv) are optional: when absent,
+Heavy ML deps (onnxruntime, transformers, opencv) are optional: when absent,
 the pipeline degrades gracefully and marks the media "needs review".
 """
 
@@ -31,6 +31,7 @@ from app.database import async_session
 from app.models.media_asset import MediaAsset
 from app.models.inference_run import InferenceRun
 from app.models.report import Report
+from app.services import detection
 from app.services import storage as storage_svc
 from app.services.duplicate import DuplicateService
 from app.services.priority import base_severity, compute_priority
@@ -50,24 +51,6 @@ MAX_PUBLIC_DIM = 1600
 # ---------------------------------------------------------------------------
 
 _detector_cache = {}
-
-
-def _load_yolo():
-    """Load the fine-tuned YOLO model when weights + ultralytics are available."""
-    if "yolo" in _detector_cache:
-        return _detector_cache["yolo"]
-    yolo = None
-    try:
-        from ultralytics import YOLO
-
-        model_dir = Path(settings.ML_MODEL_PATH)
-        weights = sorted(model_dir.glob("*.pt"))
-        if weights:
-            yolo = YOLO(str(weights[0]))
-    except Exception as exc:  # pragma: no cover - optional dependency
-        logger.info("YOLO unavailable, detection skipped: %s", exc)
-    _detector_cache["yolo"] = yolo
-    return yolo
 
 
 def _perceptual_embedding(img: Image.Image) -> list[float]:
@@ -211,38 +194,23 @@ async def run_media_pipeline(media_asset_id: UUID) -> dict:
                 logger.error("Pipeline: public upload failed: %s", exc)
 
             # --- detection ---------------------------------------------------
-            yolo = _load_yolo()
-            if yolo is not None:
-                t0 = time.perf_counter()
-                try:
-                    raw = yolo(np.array(clean), device=settings.ML_DEVICE, conf=0.25)
-                    detections = []
-                    for res in raw:
-                        boxes = getattr(res, "boxes", None)
-                        if boxes is None:
-                            continue
-                        for box in boxes:
-                            detections.append({
-                                "bbox": [round(v, 1) for v in box.xyxy[0].tolist()],
-                                "class_name": res.names[int(box.cls[0])],
-                                "confidence": round(float(box.conf[0]), 3),
-                            })
-                    db.add(InferenceRun(
-                        media_asset_id=asset.id, task="detection",
-                        model_name="yolov8-urbanlens", model_version="v1",
-                        result={"detections": detections, "needs_review": len(detections) == 0},
-                        latency_ms=int((time.perf_counter() - t0) * 1000),
-                    ))
-                    summary["detections"] = detections
-                except Exception as exc:
-                    logger.error("Pipeline: detection failed: %s", exc)
-            else:
+            t0 = time.perf_counter()
+            detections = detection.detect(clean)
+            if detections is None:
                 db.add(InferenceRun(
                     media_asset_id=asset.id, task="detection",
                     model_name="yolov8-urbanlens", model_version="v1",
                     result={"detections": [], "needs_review": True,
                             "status": "model_weights_not_available"},
                 ))
+            else:
+                db.add(InferenceRun(
+                    media_asset_id=asset.id, task="detection",
+                    model_name=detection.MODEL_NAME, model_version="v1",
+                    result={"detections": detections, "needs_review": len(detections) == 0},
+                    latency_ms=int((time.perf_counter() - t0) * 1000),
+                ))
+                summary["detections"] = detections
 
             # --- embedding ---------------------------------------------------
             t0 = time.perf_counter()

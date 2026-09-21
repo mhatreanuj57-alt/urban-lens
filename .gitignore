@@ -69,6 +69,8 @@ htmlcov/
 .tox/
 
 # ML artifacts (weights, datasets, training runs stay local)
+# Exception: the exported ONNX graph ships to the container, because training
+# checkpoints (.pt) are large and detection needs only the exported graph.
 ml/models/*
 !ml/models/.gitkeep
 ml/data/
@@ -76,6 +78,7 @@ runs/
 datasets/
 *.pt
 *.onnx
+!ml/models/*.onnx
 *.engine
 
 

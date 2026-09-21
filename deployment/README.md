@@ -57,10 +57,16 @@ browser -> Vercel (frontend) -> Supabase Auth (JWT)
    Cloudflare R2 works too (`https://<account>.r2.cloudflarestorage.com`, region
    `auto`, per-bucket CORS policy) but its `r2.dev` public gateway sits behind a
    paid subscription, so it is not the no-cost option.
-4. Detection is off on the 512 MB free tier — torch does not fit. Change
-   `ARG ML_INSTALL=0` to `1` in `backend/Dockerfile` and move to a 1 GB+
-   instance to run YOLOv8 in the cloud; `pipeline.py` degrades to
-   "detection skipped" when no weights are present.
+4. Detection **runs on the free 512 MB tier**: the container installs
+   `onnxruntime` and loads `ml/models/urbanlens_yolov8.onnx` (~12 MB, committed
+   to the repo), so torch never enters the image. Regenerate the graph after a
+   retrain and commit it:
+   `yolo export model=ml/models/urbanlens_yolov8_v1.pt format=onnx opset=18 simplify=False`
+   (opset must match what torch emits, or ONNX Runtime rejects the graph).
+   `pipeline.py` degrades to `model_weights_not_available` if the file is
+   missing, and the report page then says detection is disabled on that build.
+   Only CLIP embeddings still need torch, so the free tier falls back to the
+   average-hash embedding.
 5. The hosted schema is already migrated. After a model change run
    `alembic upgrade head` with `DATABASE_URL_SYNC` from a shell that can reach
    the pooler.
