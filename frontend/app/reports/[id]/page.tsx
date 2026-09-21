@@ -54,13 +54,18 @@ function AiAnalysis({ report }: { report: ReportDetail }) {
   const detectionRuns = report.inference_runs.filter((r) => r.task === "detection");
   const detections: Detection[] = detectionRuns.flatMap((r) => r.result.detections ?? []);
   const needsReview = detectionRuns.some((r) => r.result.needs_review);
+  const modelUnavailable = detectionRuns.some(
+    (r) => r.result.status === "model_weights_not_available",
+  );
 
   return (
     <section className="card p-5">
       <h2 className="text-sm font-semibold uppercase tracking-wide text-ink-500">AI analysis</h2>
       {detections.length === 0 ? (
         <p className="mt-2 text-sm text-ink-500">
-          No detection results yet — analysis runs in the background after upload.
+          {modelUnavailable
+            ? "Object detection is disabled on this server build (model weights not installed). Privacy blur, priority scoring and duplicate clustering still ran."
+            : "No detection results yet — analysis runs in the background after upload."}
         </p>
       ) : (
         <>
