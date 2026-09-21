@@ -14,8 +14,9 @@ browser -> Vercel (frontend) -> Supabase Auth (JWT)
 `render.yaml` at the repo root is the whole service definition.
 
 1. render.com -> **New+ -> Blueprint** -> authorise the GitHub app on
-   `a18-n03/Urban-Lens` -> pick `master`. Render creates `urban-lens-backend`
-   at `https://urban-lens-backend.onrender.com`.
+   `mhatreanuj57-alt/urban-lens` -> pick `master`. Render names the service
+   itself, so read the URL from the dashboard: this one is
+   `https://urban-lens-dg3s.onrender.com`.
 2. Fill the `sync: false` variables in the dashboard (Blueprint never overwrite
    them afterwards):
 
@@ -32,18 +33,29 @@ browser -> Vercel (frontend) -> Supabase Auth (JWT)
    TLS by itself.
 3. Object storage: `STORAGE_ENDPOINT` / `STORAGE_PUBLIC_ENDPOINT` must be
    reachable from the browser, because uploads are presigned `PUT`s straight from
-   the client. Either
-   - Cloudflare R2: bucket + `s3://<account>.r2.cloudflarestorage.com` + a
-     token, and a public dev/bucket URL for `STORAGE_PUBLIC_ENDPOINT`; or
-   - Supabase Storage: `https://<ref>.supabase.co/storage/v1/s3` plus an S3
-     access key from *Storage -> S3 Integration -> Access Keys*, and
-     `STORAGE_PUBLIC_ENDPOINT=https://<ref>.supabase.co/storage/v1/object`
-     (the API stores keys as `<bucket>/<object>` against that base).
-   The buckets `urbanlens-private` / `urbanlens-public` are created at startup
-   when the credentials allow it; otherwise create them by hand and make the
-   public one readable. Supabase's S3 endpoint has its own bucket addressing
-   rules, so confirm the first presigned upload from a browser before trusting
-   the configuration — the client PUTs directly to the URL the API hands back.
+   the client. Supabase Storage's S3 gateway is verified to work with this
+   service (probed 2026-09-21: it answers path-style requests and signs with
+   SigV4):
+
+   | Key | Value |
+   | --- | --- |
+   | `STORAGE_ENDPOINT` | `https://<ref>.supabase.co/storage/v1/s3` |
+   | `STORAGE_PUBLIC_ENDPOINT` | same |
+   | `STORAGE_PUBLIC_URL_BASE` | `https://<ref>.supabase.co/storage/v1/object/public/urbanlens-public` |
+   | `STORAGE_ACCESS_KEY` / `STORAGE_SECRET_KEY` | from *Project Settings -> Storage -> S3 Protocol -> Create new access key* |
+   | `STORAGE_REGION` | `us-east-1` |
+   | `STORAGE_PATH_STYLE` | `true` |
+
+   Create `urbanlens-private` and `urbanlens-public` in the Storage dashboard and
+   flip **Public bucket** on the second one: `PutBucketPolicy` is not part of
+   Supabase's S3 surface, so the anonymous-read grant cannot come from the app,
+   and objects under `/object/public/` 404 until the flag is set. Cloudflare R2
+   works too (`https://<account>.r2.cloudflarestorage.com`, region `auto`, public
+   URL base = the bucket's dev/custom-domain URL), but its `r2.dev` public
+   gateway needs a paid plan, so it is not the free-tier answer.
+
+   Whatever the provider, confirm one presigned browser upload end to end before
+   trusting the config — the client `PUT`s straight to the URL the API hands back.
 4. Detection is off on the 512 MB free tier — torch does not fit. Change
    `ARG ML_INSTALL=0` to `1` in `backend/Dockerfile` and move to a 1 GB+
    instance to run YOLOv8 in the cloud; `pipeline.py` degrades to

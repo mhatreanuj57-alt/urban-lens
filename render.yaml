@@ -34,9 +34,19 @@ services:
       - key: SUPABASE_SECRET_KEY
         sync: false
       # S3-compatible object storage (Cloudflare R2 or Supabase Storage).
+      # Uploads are presigned PUTs straight from the browser, so the endpoint
+      # must be publicly reachable. Values are provider-specific:
+      #   Supabase  ENDPOINT=https://<ref>.supabase.co/storage/v1/s3
+      #             PUBLIC_URL_BASE=https://<ref>.supabase.co/storage/v1/object/public/<public-bucket>
+      #             REGION=us-east-1  PATH_STYLE=true (its gateway needs the bucket in the path)
+      #   R2        ENDPOINT=https://<account>.r2.cloudflarestorage.com
+      #             PUBLIC_URL_BASE=<bucket public dev or custom domain URL>
+      #             REGION=auto  PATH_STYLE=true
       - key: STORAGE_ENDPOINT
         sync: false
       - key: STORAGE_PUBLIC_ENDPOINT
+        sync: false
+      - key: STORAGE_PUBLIC_URL_BASE
         sync: false
       - key: STORAGE_ACCESS_KEY
         sync: false
@@ -44,6 +54,12 @@ services:
         sync: false
       - key: STORAGE_REGION
         sync: false
+      - key: STORAGE_PATH_STYLE
+        sync: false
+      - key: STORAGE_BUCKET_PRIVATE
+        value: urbanlens-private
+      - key: STORAGE_BUCKET_PUBLIC
+        value: urbanlens-public
       - key: CORS_ORIGINS
         value: '["https://urban-lens-seven.vercel.app","http://localhost:3000"]'
       - key: ML_MODEL_PATH
