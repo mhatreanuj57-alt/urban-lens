@@ -40,6 +40,16 @@ class StorageService:
             )
         return self._client
 
+    def _create_bucket(self, bucket: str) -> None:
+        """Create a bucket, sending a region only if the gateway demands one."""
+        try:
+            self.client.create_bucket(Bucket=bucket)
+        except ClientError:
+            self.client.create_bucket(
+                Bucket=bucket,
+                CreateBucketConfiguration={"LocationConstraint": settings.STORAGE_REGION},
+            )
+
     def ensure_buckets(self) -> None:
         """Create the private/public buckets and set the public read policy."""
         if self._buckets_ready:
@@ -47,14 +57,17 @@ class StorageService:
         for bucket in (settings.STORAGE_BUCKET_PRIVATE, settings.STORAGE_BUCKET_PUBLIC):
             try:
                 self.client.head_bucket(Bucket=bucket)
+                continue
             except ClientError:
-                self.client.create_bucket(
-                    Bucket=bucket,
-                    CreateBucketConfiguration={"LocationConstraint": settings.STORAGE_REGION}
-                    if settings.STORAGE_REGION not in ("us-east-1", "")
-                    else {},
-                )
+                pass
+            try:
+                self._create_bucket(bucket)
                 logger.info("Created bucket %s", bucket)
+            except ClientError as exc:
+                # Hosted gateways often refuse creation (Supabase) or require a
+                # globally unique name, and a missing bucket surfaces clearly on
+                # the next object operation, so don't take the app down for it.
+                logger.warning("Could not create bucket %s: %s", bucket, exc)
         public_policy = {
             "Version": "2012-10-17",
             "Statement": [
