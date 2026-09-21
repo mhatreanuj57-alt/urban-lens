@@ -19,6 +19,7 @@ class MediaAssetResponse(BaseModel):
     kind: str
     object_key: str
     public_object_key: Optional[str] = None
+    public_url: Optional[str] = None
     mime_type: str
     width: Optional[int] = None
     height: Optional[int] = None

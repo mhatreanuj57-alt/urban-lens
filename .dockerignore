@@ -1,0 +1,24 @@
+# Keep secrets and local junk out of every image build.
+.git
+**/.env
+**/.env.*
+!.env.example
+**/*.local
+.vercel
+**/__pycache__
+**/*.pyc
+.pytest_cache
+**/node_modules
+frontend/.next
+**/*.log
+.qoder
+.qoder-tmp
+ml/notebooks
+ml/datasets
+tests
+**/.ipynb_checkpoints
+
+# Weights are not committed, so a repo-driven build (Render) starts with no
+# *.pt in /models and skips detection. A local build picks up whatever
+# checkpoint is present in ml/models.
+!ml/models/*.pt

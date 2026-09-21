@@ -84,6 +84,8 @@ function AiAnalysis({ report }: { report: ReportDetail }) {
 }
 
 function ReportMedia({ report }: { report: ReportDetail }) {
+  // Older backends only send the object key, so keep the local MinIO layout as
+  // a fallback; every current response carries an absolute public_url.
   const base =
     process.env.NEXT_PUBLIC_STORAGE_URL ||
     process.env.NEXT_PUBLIC_API_URL?.replace(/\/v1\/?$/, "").replace(/\/$/, "") ||
@@ -97,7 +99,7 @@ function ReportMedia({ report }: { report: ReportDetail }) {
             <figure key={m.id}>
               {/* eslint-disable-next-line @next/next/no-img-element */}
               <img
-                src={`${base}/urbanlens-public/${m.public_object_key}`}
+                src={m.public_url || `${base}/urbanlens-public/${m.public_object_key}`}
                 alt={report.issue_type ? ISSUE_LABELS[report.issue_type] : "Reported issue"}
                 className="w-full rounded-lg border border-ink-200 object-cover"
               />

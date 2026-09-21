@@ -1,0 +1,53 @@
+# Render Blueprint — https://render.com/docs/blueprint-spec
+# Apply from the GitHub repo (New+ -> Blueprint -> select a18-n03/Urban-Lens) and
+# Render reads this file. Values marked sync:false are never overwritten by a
+# redeploy, so secrets you paste in the dashboard survive future pushes.
+services:
+  - type: web
+    name: urban-lens-backend
+    runtime: docker
+    repo: https://github.com/a18-n03/Urban-Lens
+    branch: master
+    region: singapore
+    plan: free
+    dockerContext: .
+    dockerfilePath: ./backend/Dockerfile
+    healthCheckPath: /health
+    autoDeploy: true
+    envVars:
+      - key: APP_ENV
+        value: production
+      - key: DEBUG
+        value: "false"
+      - key: TASK_QUEUE_MODE
+        value: inline
+      # Supabase session pooler (IPv4). Percent-encode '#'/'=' in the password.
+      - key: DATABASE_URL
+        sync: false
+      - key: DATABASE_URL_SYNC
+        sync: false
+      - key: SECRET_KEY
+        generateValue: true
+      - key: SUPABASE_URL
+        value: https://ilbvlzbfkgeldobgedpx.supabase.co
+      - key: SUPABASE_PUBLISHABLE_KEY
+        sync: false
+      - key: SUPABASE_SECRET_KEY
+        sync: false
+      # S3-compatible object storage (Cloudflare R2 or Supabase Storage).
+      - key: STORAGE_ENDPOINT
+        sync: false
+      - key: STORAGE_PUBLIC_ENDPOINT
+        sync: false
+      - key: STORAGE_ACCESS_KEY
+        sync: false
+      - key: STORAGE_SECRET_KEY
+        sync: false
+      - key: STORAGE_REGION
+        sync: false
+      - key: CORS_ORIGINS
+        value: '["https://urban-lens-seven.vercel.app","http://localhost:3000"]'
+      - key: ML_MODEL_PATH
+        value: /models
+      - key: ML_DEVICE
+        value: cpu

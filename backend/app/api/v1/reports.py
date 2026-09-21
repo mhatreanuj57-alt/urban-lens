@@ -57,7 +57,12 @@ def _redact(report: Report, user: User | None) -> dict:
 def _to_detail(report: Report, user: User | None) -> dict:
     data = _redact(report, user)
     data["media_assets"] = [
-        MediaAssetResponse.model_validate(m).model_dump(mode="json")
+        {
+            **MediaAssetResponse.model_validate(m).model_dump(mode="json"),
+            "public_url": storage_svc.storage_service.public_url(m.public_object_key)
+            if m.public_object_key
+            else None,
+        }
         for m in report.media_assets_rel
     ]
     data["inference_runs"] = [

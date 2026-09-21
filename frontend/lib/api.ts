@@ -124,6 +124,7 @@ export interface MediaAsset {
   kind: string;
   object_key: string;
   public_object_key: string | null;
+  public_url?: string | null;
   mime_type: string;
   width: number | null;
   height: number | null;
