@@ -49,7 +49,8 @@ class Settings(BaseSettings):
     # where the object URL is "{endpoint}/{bucket}/{key}"; Supabase instead
     # serves public objects at "https://<ref>.supabase.co/storage/v1/object/public".
     STORAGE_PUBLIC_URL_BASE: str = ""
-    # Supabase's S3 gateway only routes virtual-host-style bucket requests.
+    # Both MinIO and Supabase's S3 gateway are addressed path-style; flip to
+    # false only for a gateway that requires "<bucket>.<endpoint>" hosts.
     STORAGE_PATH_STYLE: bool = True
 
     # ML
