@@ -45,6 +45,12 @@ class Settings(BaseSettings):
     STORAGE_BUCKET_PRIVATE: str = "urbanlens-private"
     STORAGE_BUCKET_PUBLIC: str = "urbanlens-public"
     STORAGE_REGION: str = "ap-south-1"
+    # Anonymous-read prefix for public derivatives. Leave blank for MinIO/R2,
+    # where the object URL is "{endpoint}/{bucket}/{key}"; Supabase instead
+    # serves public objects at "https://<ref>.supabase.co/storage/v1/object/public".
+    STORAGE_PUBLIC_URL_BASE: str = ""
+    # Supabase's S3 gateway only routes virtual-host-style bucket requests.
+    STORAGE_PATH_STYLE: bool = True
 
     # ML
     ML_MODEL_PATH: str = str(_REPO_ROOT / "ml" / "models")

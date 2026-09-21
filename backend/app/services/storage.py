@@ -33,7 +33,10 @@ class StorageService:
                 aws_access_key_id=settings.STORAGE_ACCESS_KEY,
                 aws_secret_access_key=settings.STORAGE_SECRET_KEY,
                 region_name=settings.STORAGE_REGION,
-                config=BotoConfig(signature_version="s3v4", s3={"path_style_access": True}),
+                config=BotoConfig(
+                    signature_version="s3v4",
+                    s3={"path_style_access": settings.STORAGE_PATH_STYLE},
+                ),
             )
         return self._client
 
@@ -103,6 +106,9 @@ class StorageService:
 
     def public_url(self, object_key: str) -> str:
         """Stable anonymous URL for a public derivative."""
+        base = settings.STORAGE_PUBLIC_URL_BASE.rstrip("/")
+        if base:
+            return f"{base}/{object_key}"
         return (
             f"{settings.public_storage_endpoint.rstrip('/')}/"
             f"{settings.STORAGE_BUCKET_PUBLIC}/{object_key}"
