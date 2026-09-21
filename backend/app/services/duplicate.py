@@ -63,7 +63,7 @@ class DuplicateService:
                 Report.submitted_at >= since,
                 func.ST_DWithin(Report.location, point, max_distance_m),
             )
-            .order_by(distance_m.asc())
+            .order_by(distance.asc())
             .limit(max_candidates)
         )
         result = await db.execute(stmt)

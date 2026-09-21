@@ -1,7 +1,7 @@
-"""Inference orchestration — dispatches pipeline work to Celery or inline threads."""
+"""Inference orchestration — dispatches pipeline work to Celery or the app loop."""
 
+import asyncio
 import logging
-import threading
 from uuid import UUID
 
 from app.config import settings
@@ -9,18 +9,35 @@ from app.config import settings
 logger = logging.getLogger(__name__)
 
 
-def _run_inline(media_asset_id: UUID) -> None:
-    """Execute the pipeline in a daemon thread with its own event loop."""
+def _run_inline(media_asset_id: UUID) -> str:
+    """Run the pipeline on the caller's event loop.
+
+    The shared async engine owns one connection pool bound to a single event
+    loop, so we must not execute pipeline DB work on a fresh thread+loop
+    (that corrupts pooled asyncpg connections). Scheduling a task on the
+    running loop keeps all DB access on the loop that owns the pool.
+    """
     from app.services.pipeline import run_media_pipeline
 
-    def _worker():
-        try:
-            asyncio_run = __import__("asyncio").run
-            asyncio_run(run_media_pipeline(media_asset_id))
-        except Exception:
-            logger.exception("Inline pipeline failed for asset %s", media_asset_id)
+    try:
+        loop = asyncio.get_running_loop()
+    except RuntimeError:
+        loop = None
 
-    threading.Thread(target=_worker, name="urbanlens-pipeline", daemon=True).start()
+    if loop is not None:
+        task = loop.create_task(run_media_pipeline(media_asset_id))
+
+        def _done(t: asyncio.Task) -> None:
+            exc = t.exception()
+            if exc is not None:
+                logger.error("Inline pipeline failed for asset %s: %s", media_asset_id, exc)
+
+        task.add_done_callback(_done)
+        return f"inline:{media_asset_id}"
+
+    # No running loop (e.g. seeding / CLI): run to completion on a throwaway loop.
+    asyncio.run(run_media_pipeline(media_asset_id))
+    return f"inline-sync:{media_asset_id}"
 
 
 def dispatch_pipeline(media_asset_id: UUID) -> str:
@@ -34,5 +51,5 @@ def dispatch_pipeline(media_asset_id: UUID) -> str:
         )
         logger.info("Enqueued pipeline task %s for asset %s", task.id, media_asset_id)
         return task.id
-    _run_inline(media_asset_id)
-    return f"inline:{media_asset_id}"
+    return _run_inline(media_asset_id)
+

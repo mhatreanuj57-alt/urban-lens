@@ -58,8 +58,8 @@ export default function ReportForm() {
       setError("Please choose a JPG, PNG, WebP, MP4 or MOV file.");
       return;
     }
-    if (next.size > 50 * 1024 * 1024) {
-      setError("File is larger than 50 MB.");
+    if (next.size > 25 * 1024 * 1024) {
+      setError("File is larger than 25 MB.");
       return;
     }
     setFile(next);
@@ -171,7 +171,7 @@ export default function ReportForm() {
               <path d="M12 16V4m0 0L8 8m4-4l4 4M4 16v2a2 2 0 002 2h12a2 2 0 002-2v-2" strokeLinecap="round" strokeLinejoin="round" />
             </svg>
             <span className="text-sm font-medium">Tap to add a road photo or short video</span>
-            <span className="text-xs">JPG, PNG, WebP, MP4 or MOV · up to 50 MB</span>
+            <span className="text-xs">JPG, PNG, WebP, MP4 or MOV · up to 25 MB</span>
           </button>
         )}
         {uploading && (

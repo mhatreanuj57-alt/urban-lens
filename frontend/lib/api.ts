@@ -30,7 +30,10 @@ async function apiFetch<T>(
   const headers: Record<string, string> = {
     ...(options.headers as Record<string, string>),
   };
-  if (!(options.body instanceof FormData) && options.body) {
+  const hasContentType = Object.keys(headers).some(
+    (k) => k.toLowerCase() === "content-type",
+  );
+  if (!hasContentType && !(options.body instanceof FormData) && options.body) {
     headers["Content-Type"] = "application/json";
   }
   if (token) headers["Authorization"] = `Bearer ${token}`;
@@ -332,10 +335,10 @@ export const incidentsApi = {
 
 export const uploadsApi = {
   sign: (filename: string, content_type: string, size_bytes: number) =>
-    apiFetch<SignResponse>("/uploads/sign", {
-      method: "POST",
-      body: JSON.stringify({ filename, content_type, size_bytes }),
-    }),
+    apiFetch<SignResponse>(
+      `/uploads/sign${qs({ filename, content_type, size_bytes })}`,
+      { method: "POST" },
+    ),
   upload: async (sign: SignResponse, file: File) => {
     const res = await fetch(sign.upload_url, {
       method: sign.method,
