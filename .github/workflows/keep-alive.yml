@@ -1,0 +1,95 @@
+name: Keep-alive
+
+# Supabase's free plan pauses a project after 7 days without activity, and only
+# a request that actually reaches Postgres counts — the Vercel pages are static,
+# and /health touches no data. So this pings a public endpoint that runs real
+# queries, and reports on the rest of the stack while it is there.
+
+on:
+  schedule:
+    - cron: "17 7 * * *" # 07:17 UTC, i.e. 12:47 IST
+  workflow_dispatch: {}
+
+permissions: {}
+
+jobs:
+  probe:
+    runs-on: ubuntu-latest
+    env:
+      API_URL: https://urban-lens-dg3s.onrender.com
+      SITE_URL: https://urban-lens-seven.vercel.app
+    steps:
+      - name: Probe live stack
+        run: |
+          python - <<'PY'
+          import json, os, time, urllib.error, urllib.request
+
+          api = os.environ["API_URL"].rstrip("/")
+          site = os.environ["SITE_URL"].rstrip("/")
+
+          def probe(name, url, expect_json=False):
+              for attempt in (1, 2):  # second try absorbs the Render cold start
+                  started = time.perf_counter()
+                  try:
+                      with urllib.request.urlopen(url, timeout=120) as res:
+                          body = res.read()
+                          code = res.status
+                  except urllib.error.HTTPError as exc:
+                      code, body = exc.code, exc.read()
+                  except Exception as exc:  # timeout, DNS, TLS, ...
+                      code, body = 0, str(exc).encode()
+                  elapsed = time.perf_counter() - started
+                  if code == 200:
+                      if not expect_json:
+                          return name, url, code, elapsed, ""
+                      try:
+                          data = json.loads(body)
+                      except ValueError:
+                          return name, url, "bad json", elapsed, ""
+                      detail = ""
+                      if isinstance(data, dict):
+                          detail = "reports=%s" % data.get("total_reports")
+                          status = data.get("reports_by_status") or {}
+                          if status:
+                              detail += " " + ", ".join(
+                                  f"{k}={v}" for k, v in sorted(status.items())
+                              )
+                      elif isinstance(data, list):
+                          detail = "rows=%d" % len(data)
+                      return name, url, code, elapsed, detail
+                  if attempt == 1:
+                      print(f"{name}: HTTP {code} on first try, retrying in 15s")
+                      time.sleep(15)
+              return name, url, code, elapsed, ""
+
+          checks = [
+              ("supabase query", api + "/v1/analytics/summary", True),
+              ("incidents query", api + "/v1/incidents/?limit=5", True),
+              ("api health", api + "/health", False),
+              ("frontend", site + "/", False),
+          ]
+          results = [probe(*c) for c in checks]
+
+          # Only the DB-backed check can pause the project, so it is the one that
+          # has to pass; a sleeping Render instance or a moved frontend is a
+          # warning rather than a red run.
+          fatal = [r for r in results if r[0] == "supabase query" and r[2] != 200]
+
+          summary = os.environ.get("GITHUB_STEP_SUMMARY")
+          if summary:
+              with open(summary, "a", encoding="utf-8") as f:
+                  f.write("## UrbanLens keep-alive\n\n")
+                  f.write("| Check | Result | Seconds | Detail |\n|---|---|---|---|\n")
+                  for name, url, code, secs, detail in results:
+                      f.write(f"| {name} | {code} | {secs:.1f} | {detail or '—'} |\n")
+                  f.write(
+                      "\nIf **supabase query** is not 200, the hosted database may have "
+                      "paused: open the Supabase dashboard and resume the project, then "
+                      "check Render's service log for a failed startup.\n"
+                  )
+
+          for name, url, code, secs, detail in results:
+              print(f"{name:18} {str(code):>8}  {secs:5.1f}s  {detail}")
+          if fatal:
+              raise SystemExit("keep-alive failed: the database-backed check did not run")
+          PY
