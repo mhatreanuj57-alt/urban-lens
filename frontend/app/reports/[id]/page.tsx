@@ -50,7 +50,7 @@ function PriorityBreakdown({ report }: { report: ReportDetail }) {
   );
 }
 
-function AiAnalysis({ report }: { report: ReportDetail }) {
+function AiAnalysis({ report, processing }: { report: ReportDetail; processing: boolean }) {
   const detectionRuns = report.inference_runs.filter((r) => r.task === "detection");
   const detections: Detection[] = detectionRuns.flatMap((r) => r.result.detections ?? []);
   const needsReview = detectionRuns.some((r) => r.result.needs_review);
@@ -63,9 +63,11 @@ function AiAnalysis({ report }: { report: ReportDetail }) {
       <h2 className="text-sm font-semibold uppercase tracking-wide text-ink-500">AI analysis</h2>
       {detections.length === 0 ? (
         <p className="mt-2 text-sm text-ink-500">
-          {modelUnavailable
-            ? "Object detection is disabled on this server build (model weights not installed). Privacy blur, priority scoring and duplicate clustering still ran."
-            : "No detection results yet — analysis runs in the background after upload."}
+          {processing
+            ? "Analysing this photo…"
+            : modelUnavailable
+              ? "Object detection is disabled on this server build (model weights not installed). Privacy blur, priority scoring and duplicate clustering still ran."
+              : "No detection results yet — analysis runs in the background after upload."}
         </p>
       ) : (
         <>
@@ -238,6 +240,25 @@ export default function ReportDetailPage() {
     load();
   }, [load]);
 
+  // Media processing lands a few seconds after the POST returns, so a report
+  // that has a photo but no inference output yet is refetched rather than
+  // presented as permanently empty. Polling stops after ~1 minute regardless.
+  const [polls, setPolls] = useState(0);
+  const processing =
+    report !== null &&
+    report.media_assets.length > 0 &&
+    report.inference_runs.length === 0 &&
+    polls < 20;
+
+  useEffect(() => {
+    if (!processing) return;
+    const timer = setTimeout(() => {
+      setPolls((n) => n + 1);
+      load();
+    }, 3000);
+    return () => clearTimeout(timer);
+  }, [processing, load]);
+
   if (error && !report) return <div className="container-page py-10"><ErrorState message={error} onRetry={load} /></div>;
   if (!report) return <div className="container-page py-10"><Loading label="Loading report…" /></div>;
 
@@ -272,7 +293,7 @@ export default function ReportDetailPage() {
 
       {report.media_assets.length > 0 && <ReportMedia report={report} />}
 
-      <AiAnalysis report={report} />
+      <AiAnalysis report={report} processing={processing} />
       <PriorityBreakdown report={report} />
 
       {!authLoading && isModerator && <VerifyPanel report={report} onDone={load} />}
