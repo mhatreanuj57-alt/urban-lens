@@ -40,7 +40,9 @@ async function apiFetch<T>(
 
   let res: Response;
   try {
-    res = await fetch(`${API_URL}${path}`, { ...options, headers });
+    // Next.js patches client-side fetch into its router cache, which would keep
+    // replaying the same response for a URL whose data has since changed.
+    res = await fetch(`${API_URL}${path}`, { cache: "no-store", ...options, headers });
   } catch {
     throw new ApiError(0, "Cannot reach the UrbanLens server. Is the API running?");
   }
