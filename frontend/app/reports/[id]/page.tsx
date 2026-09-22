@@ -257,7 +257,7 @@ export default function ReportDetailPage() {
       load();
     }, 3000);
     return () => clearTimeout(timer);
-  }, [processing, load]);
+  }, [processing, polls, load]);
 
   if (error && !report) return <div className="container-page py-10"><ErrorState message={error} onRetry={load} /></div>;
   if (!report) return <div className="container-page py-10"><Loading label="Loading report…" /></div>;
